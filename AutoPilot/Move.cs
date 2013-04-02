@@ -39,6 +39,11 @@ namespace EveComFramework
                 return true;
             }
             Target = ((Func<IDockable>)Params[0])();
+            if (Target == null)
+            {
+                return true;
+            }
+            EVEFrame.Log("Docking");
             Target.Dock();
             WaitFor(10, () => Session.InStation, () => MyShip.ToEntity.Mode == EntityMode.Warping);
             QueueState(DockAtState, -1, Params);
@@ -52,21 +57,16 @@ namespace EveComFramework
 
         bool CheckAutoPilot(object[] Params)
         {
-            if (Route.NextWaypoint == null)
+            if (Route.Path.First() == -1)
             {
                 return true;
             }
             if (Session.InStation)
             {
-                if (Route.NextWaypoint.GroupID == Group.Station && Route.NextWaypoint.ID != Session.StationID)
+                if (Route.Path.First() != Session.StationID && Route.Path.First() != Session.SolarSystemID)
                 {
                     Command.CmdExitStation.Execute();
-                    WaitFor(30, () => Session.InSpace);
-                    QueueState(CheckAutoPilot);
-                }
-                if (Route.NextWaypoint.GroupID == Group.SolarSystem && Route.NextWaypoint.ID != Session.SolarSystemID)
-                {
-                    Command.CmdExitStation.Execute();
+                    EVEFrame.Log("Undocking");
                     WaitFor(30, () => Session.InSpace);
                     QueueState(CheckAutoPilot);
                 }
@@ -89,15 +89,11 @@ namespace EveComFramework
                 DockAt(Route.NextWaypoint);
                 return true;
             }
-            if (Route.NextWaypoint.GroupID == Group.SolarSystem && Route.NextWaypoint.ID != Session.SolarSystemID)
+            if (Route.NextWaypoint.GroupID == Group.Stargate)
             {
-                long nextSystem = Route.NextWaypoint.ID;
-                Entity nextSystemGate = Entity.All.FirstOrDefault(ent => ent.GroupID == Group.Stargate && ent.JumpDest == nextSystem);
-                if (nextSystemGate == null)
-                {
-                    return true;
-                }
-                nextSystemGate.Jump();
+                long nextSystem = Route.NextWaypoint.JumpDest;
+                Route.NextWaypoint.Jump();
+                EVEFrame.Log("Jumping Through " + Route.NextWaypoint.Name);
                 WaitFor(30, () => Session.SolarSystemID == nextSystem, () => MyShip.ToEntity.Mode == EntityMode.Warping);
                 QueueState(AutoPilotState);
             }

@@ -23,6 +23,7 @@ namespace AutoPilot
             {
                 Thread.Sleep(100);
             }
+            EVEFrame.Log("AutoPilot Done");
         }
     }
 }
